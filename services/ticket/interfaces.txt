@@ -1,0 +1,178 @@
+Print ticket Request:
+{
+    "channelIdentifier": {
+        "salesChannelCode": "Web",
+        "agentCode": "S502",
+        "agentUser": "MyAcct",
+        "partnerCode": "NX",
+        "campaignCode": "DEFAULT"
+    },
+    "data": {
+        "ticketNumber": "E5JE3930",
+        "leadpassenger": {
+            "firstName": "Farah",
+            "lastName": "Nawaz"
+        },
+        "fare": {
+            "fareDisplayName": "Standard"
+        },
+        "passengerSummary": {
+            "adults": 1,
+            "children": 0,
+            "infants": 0
+        },
+        "coachcardSummary": {
+            "youngCoachcard": 0,
+            "seniorCoachcard": 0,
+            "disabledCoachcard": 0,
+            "totalCoachcard": 0
+        },
+        "journeyType": "Single",
+        "outbound": [
+            {
+                "serviceNumber": "400",
+                "journeyRef": "LKRN-28-88A99",
+                "startDate": "Sat 07 Aug 2021",
+                "depart": {
+                    "name": "LONDON VICTORIA Coach Station",
+                    "id": "57366",
+                    "time12hourFormat": "0:00 PM",
+                    "time24hourFormat": "12:00"
+                },
+                "arrive": {
+                    "name": "BIRMINGHAM Coach Station, Digbeth",
+                    "id": "33023",
+                    "time12hourFormat": "3:05 PM",
+                    "time24hourFormat": "15:05"
+                },
+                "duration": "3 hours 5 minutes",
+                "direct": true
+            }
+        ],
+        "inbound": [],
+        "qrCode": {
+            "ticketNumber": "E5JE3930",
+            "departureDate": "0708",
+            "returnDate": "",
+            "journeyType": "single",
+            "fareCode": "CST",
+            "noAdults": "1",
+            "noChildrenInfants": "0",
+            "coachcardNumbers": [],
+            "legBookingReferences": [
+                "LKRN"
+            ]
+        },
+        "extras": [
+            {
+                "description": "Standard Outbound Seat Reservation 2C",
+                "value": "£2.00"
+            }
+        ],
+        "exclusively3rdParty": false,
+        "thirdParties": []
+    }
+}
+
+
+Print Ticket Response:
+{
+    "channelIdentifier": {
+        "salesChannelCode": "Web",
+        "agentCode": "S502",
+        "agentUser": "MyAcct",
+        "partnerCode": "NX",
+        "campaignCode": "DEFAULT"
+    },
+    "data": {
+        "ticketNumber": "E5JE0701",
+        "leadpassenger": {
+            "firstName": "test",
+            "lastName": "testy"
+        },
+        "fare": {
+            "fareDisplayName": "Standard"
+        },
+        "passengerSummary": {
+            "adults": 1,
+            "children": 0,
+            "infants": 0
+        },
+        "coachcardSummary": {
+            "youngCoachcard": 0,
+            "seniorCoachcard": 0,
+            "disabledCoachcard": 0,
+            "totalCoachcard": 0
+        },
+        "journeyType": "Return",
+        "outbound": [
+            {
+                "serviceNumber": "400",
+                "journeyRef": "RGKN-36-6013F",
+                "startDate": "Fri 09 Apr 2021",
+                "depart": {
+                    "name": "BIRMINGHAM Coach Station, Digbeth",
+                    "id": "33023",
+                    "time12hourFormat": "7:20 AM",
+                    "time24hourFormat": "07:20"
+                },
+                "arrive": {
+                    "name": "LONDON VICTORIA Coach Station",
+                    "id": "57366",
+                    "time12hourFormat": "10:50 AM",
+                    "time24hourFormat": "10:50"
+                },
+                "duration": "3 hours 30 minutes",
+                "direct": true
+            }
+        ],
+        "inbound": [
+            {
+                "serviceNumber": "400",
+                "journeyRef": "QAQC-05-0771D",
+                "startDate": "Sat 10 Apr 2021",
+                "depart": {
+                    "name": "LONDON VICTORIA Coach Station",
+                    "id": "57366",
+                    "time12hourFormat": "7:30 AM",
+                    "time24hourFormat": "07:30"
+                },
+                "arrive": {
+                    "name": "BIRMINGHAM Coach Station, Digbeth",
+                    "id": "33023",
+                    "time12hourFormat": "10:35 AM",
+                    "time24hourFormat": "10:35"
+                },
+                "duration": "3 hours 5 minutes",
+                "direct": true
+            }
+        ],
+        "qrCode": {
+            "ticketNumber": "E5JE0701",
+            "departureDate": "0904",
+            "returnDate": "1004",
+            "journeyType": "return",
+            "fareCode": "CST",
+            "noAdults": "1",
+            "noChildrenInfants": "0",
+            "coachcardNumbers": [],
+            "legBookingReferences": [
+                "RGKN",
+                "QAQC"
+            ]
+        },
+        "extras": [
+            {
+                "description": "Standard Outbound Seat Reservation 5A",
+                "value": "Free"
+            },
+            {
+                "description": "Premium Return Seat Reservation 2A",
+                "value": "Free"
+            }
+        ],
+        "exclusively3rdParty": false,
+        "thirdParties": []
+    }
+}
+
