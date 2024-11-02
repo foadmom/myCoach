@@ -106,8 +106,14 @@ const (
 	NOT_PROCESSED          int = 0
 	QUEUED_TO_BE_PROCESSED int = 1
 	BEING_PROCESSED        int = 2
-	PROCESSED              int = 3
+	PROCESSED              int = 4
+	ON_PATH                int = 8 // the leg or stop in a leg that takes you to your destination
+	PROCESSED_ON_PATH      int = 12
 )
+
+type visitedData struct {
+	VisitStatus int
+}
 
 type visited struct {
 	// Locations map[string]bool
@@ -350,6 +356,7 @@ func distance(lat1 float64, lng1 float64, lat2 float64, lng2 float64, unit ...st
 func CreateJourneyMap(from, to *Location) (*JourneyMap, error) {
 	var _stopsProcessed map[string]int = make(map[string]int)
 	var _legsProcessed map[string]int = make(map[string]int)
+	// var _processed visited = visited{_stopsProcessed, _legsProcessed}
 	var _processed visited = visited{_stopsProcessed, _legsProcessed}
 	var _jm JourneyMap = JourneyMap{JourneyStart: from, JourneyEnd: to,
 		JourneyDistance: from.Distance(to), Processed: &_processed}
@@ -379,17 +386,119 @@ func (leg *Leg) LegPassesThroughThisLocation(startingLocation *Location, destina
 	return false
 }
 
+// ============================================================================
+//
+// ============================================================================
 func (jm *JourneyMap) AddConnectionToFinalResult(connection *Connection) {
 	// we have now found a path all the way to destination from this stop
 	// make sure we store this stop in the leg
 	// add the connection tree to the result
 	jm.ResultConnections = append(jm.ResultConnections, connection)
+	jm.SetConnectionTrailStatus(connection, PROCESSED_ON_PATH)
 }
 
+// ============================================================================
+//
+// ============================================================================
 func (jm *JourneyMap) ProcessANewConnection(leg *Leg, parent *Connection, stop *Stop, level int) *Connection {
 	_connection := Connection{Leg: leg, Parent: parent, FromNode: stop.Location, NestedLevel: level}
-	jm.MarkStopAsProcessed(leg, stop)
 	return &_connection
+}
+
+// ============================================================================
+// BINGO: does the leg stop at what is our final destination
+// ============================================================================
+func (jm *JourneyMap) LegStopsAtOurDestination(leg *Leg) *Location {
+	var _location *Location = nil
+	for _, _stop := range leg.AllStops {
+		if _stop.Location.ID == jm.JourneyEnd.ID {
+			_location = _stop.Location
+			jm.SetLegProcessingStatus(leg, PROCESSED_ON_PATH)
+			break
+		}
+	}
+	return _location
+}
+
+// ============================================================================
+//
+// ============================================================================
+func (jm *JourneyMap) FoundAConnectionThrough(leg *Leg, parent *Connection, level int) {
+	_connection := Connection{Leg: leg, Parent: parent, FromNode: jm.JourneyEnd, NestedLevel: level}
+	jm.AddConnectionToFinalResult(&_connection)
+}
+
+// ============================================================================
+// follow the link back to start and set every connection status to
+// PROCESSED_ON_PATH
+// ============================================================================
+func (jm *JourneyMap) SetConnectionTrailStatus(conn *Connection, status int) {
+	if conn.Parent != nil {
+		jm.SetConnectionProcessingStatus(conn.Leg, conn, PROCESSED_ON_PATH)
+		jm.SetConnectionTrailStatus(conn.Parent, status)
+	}
+}
+
+// ============================================================================
+// add all conections departing from a
+// once you have found the connections loop through them as well
+// ============================================================================
+// Create a _connection for From
+// _connection = IN_PROGRESS
+// Func getConnectingConnection(_connection)
+//
+//	For _leg in all legs in _connection
+//		If _leg takes you to destination
+//			Create a __connection for destination
+//			Add __connection to results
+//			Mark _leg,_connection as PROCESSED
+//		Else if _leg, _connection == NOT_PROCESSED
+//			For _stop in all stops in _leg
+//				If _stop.ID != _connection
+//					Mark _leg, _connection as BEING_PROCESSED
+//					Call getConnectingConnections (_connection)
+//		Mark _leg,connection as processed
+func (jm *JourneyMap) FindConnectingNodes_v5(level int, parent *Connection) {
+	// get all legs through this node
+	var _legs Legs = MICache.GetLegFromNode(parent.FromNode.ID)
+
+	if level < 4 {
+		for _, _leg := range _legs {
+			if jm.LegProcessingStatus(_leg) == NOT_PROCESSED {
+				var _startingLocation bool = false
+				for _, _stop := range _leg.AllStops {
+					if _startingLocation == false {
+						if _stop.Location.ID == parent.FromNode.ID {
+							_startingLocation = true
+						}
+					}
+					if _startingLocation == true {
+						// fmt.Printf("    line 473: level %d - leg %s, _stop %s\n", level, _leg.ID, _stop.Location.ID)
+						if jm.StopProcessingStatus(_leg, _stop.Location) == NOT_PROCESSED || jm.StopProcessingStatus(_leg, _stop.Location) == PROCESSED_ON_PATH {
+							var _location *Location = jm.LegStopsAtOurDestination(_leg)
+							if _location != nil {
+								// bingo. found a way through to final destination
+								// fmt.Printf("BINGO: line 469: level %d - leg %s, _stop %s\n", level, _leg.ID, _location.ID)
+								jm.FoundAConnectionThrough(_leg, parent, level)
+							} else {
+								if _stop.Location != parent.FromNode {
+									_connection := jm.ProcessANewConnection(_leg, parent, _stop, level)
+									jm.SetConnectionProcessingStatus(_leg, _connection, BEING_PROCESSED)
+									// fmt.Printf("        line 479: level %d - leg %s, _stop %s\n", level, _leg.ID, _stop.Location.ID)
+									jm.FindConnectingNodes_v5(level+1, _connection)
+									if jm.StopProcessingStatus(_leg, _connection.FromNode) != PROCESSED_ON_PATH {
+										jm.SetConnectionProcessingStatus(_leg, _connection, PROCESSED)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		jm.ConnectionTree = nil
+	}
 }
 
 // ============================================================================
@@ -402,6 +511,9 @@ func (jm *JourneyMap) FindConnectingNodes_v4(level int, parent *Connection) {
 
 	if level < 4 {
 		for _, _leg := range _legs {
+			if _leg.ID == "NX133_E" {
+				fmt.Printf("hit NX133_E\n")
+			}
 			// if leg.To is the same as where we are coming from,
 			// then there is no point in processing, we've already been there
 			if _leg.To.ID != parent.FromNode.ID {
@@ -412,24 +524,26 @@ func (jm *JourneyMap) FindConnectingNodes_v4(level int, parent *Connection) {
 					if level > 0 && _leg.To.Distance(jm.JourneyEnd) > jm.JourneyDistance {
 						// if the destination of this leg is taking us further away, then
 						// we are moving in the wrong direction so ignore this leg
-						jm.Processed.Leg[_leg.ID] = PROCESSED
+						// jm.Processed.Leg[_leg.ID] = PROCESSED
 					} else {
 						var _startingLocation bool = false
 						for _, _stop := range _leg.AllStops {
 							// any stops from this connection to end matches where
 							// we want to go then add this to result
-							if jm.StopProcessed(_leg, _stop.Location) == NOT_PROCESSED {
 
-								// we have found the legs passing through this connection.
-								// for each leg, step through stops till you get to this
-								// stop and start there
-								if _startingLocation == false {
-									if _stop.Location.ID == parent.FromNode.ID {
-										_startingLocation = true
-									}
-								} else {
+							// we have found the legs passing through this connection.
+							// for each leg, step through stops till you get to this
+							// stop and start there
+							if _startingLocation == false {
+								if _stop.Location.ID == parent.FromNode.ID {
+									_startingLocation = true
+								}
+							} else {
+								if jm.StopProcessingStatus(_leg, _stop.Location) == NOT_PROCESSED || jm.StopProcessingStatus(_leg, _stop.Location) == PROCESSED_ON_PATH {
 									// create a connection
 									_connection := jm.ProcessANewConnection(_leg, parent, _stop, level)
+									jm.SetConnectionProcessingStatus(_leg, _connection, PROCESSED)
+
 									if _stop.Location.ID == jm.JourneyEnd.ID {
 										parent.Connections = append(parent.Connections, _connection)
 										jm.AddConnectionToFinalResult(_connection)
@@ -452,6 +566,86 @@ func (jm *JourneyMap) FindConnectingNodes_v4(level int, parent *Connection) {
 		for _, _connection := range parent.Connections {
 			if _connection.FromNode.ID != jm.JourneyEnd.ID {
 				jm.FindConnectingNodes_v4(level+1, _connection)
+			}
+		}
+	}
+	jm.ConnectionTree = nil
+}
+
+// ============================================================================
+// add all conections departing from a
+// once you have found the connections loop through them as well
+// ============================================================================
+func (jm *JourneyMap) FindConnectingNodes_v4_1(level int, parent *Connection) {
+	// get all legs through this node
+	var _legs Legs = MICache.GetLegFromNode(parent.FromNode.ID)
+
+	if level < 4 {
+		for _, _leg := range _legs {
+			if parent.FromNode.ID == "LEE000" && parent.Leg.ID == "NX133_E" {
+				fmt.Printf("just hit LEE000\n")
+			}
+			fmt.Printf("Line:501 - level %d - parent = %s - staring with Leg %s\n", level, parent.FromNode.ID, _leg.ID)
+			// if leg.To is the same as where we are coming from,
+			// then there is no point in processing, we've already been there
+			if _leg.To.ID != parent.FromNode.ID {
+				// if this leg is stopping at our destination then
+				if jm.LegStopsAtOurDestination(_leg) != nil {
+					_connection := Connection{Leg: _leg, Parent: parent, FromNode: jm.JourneyEnd, NestedLevel: level}
+					jm.AddConnectionToFinalResult(&_connection)
+				} else {
+					// if the leg is fully processed, then skip this leg
+					// This is making the assumption that leg.ID is unique and not shared
+					//     by the both inbound and outbound of this leg
+					if jm.LegFullyProcessed(_leg) == false {
+						if level > 0 && _leg.To.Distance(jm.JourneyEnd) > jm.JourneyDistance {
+							// if the destination of this leg is taking us further away, then
+							// we are moving in the wrong direction so ignore this leg
+							// jm.Processed.Leg[_leg.ID] = PROCESSED
+						} else {
+							var _startingLocation bool = false
+							for _, _stop := range _leg.AllStops {
+								// any stops from this connection to end matches where
+								// we want to go then add this to result
+								if jm.StopProcessingStatus(_leg, _stop.Location) == NOT_PROCESSED {
+
+									// we have found the legs passing through this connection.
+									// for each leg, step through stops till you get to this
+									// stop and start there
+									if _startingLocation == false {
+										if _stop.Location.ID == parent.FromNode.ID {
+											_startingLocation = true
+										}
+									} else {
+										// create a connection
+										_connection := jm.ProcessANewConnection(_leg, parent, _stop, level)
+										jm.SetConnectionProcessingStatus(_leg, _connection, PROCESSED)
+										if _stop.Location.ID == jm.JourneyEnd.ID {
+											parent.Connections = append(parent.Connections, _connection)
+											jm.AddConnectionToFinalResult(_connection)
+										} else {
+											if _stop.Type == BOTH_DROP_PICKUP {
+												parent.Connections = append(parent.Connections, _connection)
+											}
+										}
+									}
+
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// you have now found all the connections from all the legs from the parent node
+		// now recursively go through the same process for these new connections
+		for _, _connection := range parent.Connections {
+			if _connection.FromNode.ID != jm.JourneyEnd.ID {
+				if _connection.Leg.ID == "NX598_N" {
+					fmt.Printf("processing NX598_N")
+				}
+				jm.FindConnectingNodes_v4_1(level+1, _connection)
 			}
 		}
 	}
@@ -485,38 +679,6 @@ func (conn *Connection) WalkTheTree() string {
 }
 
 // ============================================================================
-// has this stop been processed already?
-// ============================================================================
-func (jm *JourneyMap) StopProcessed(leg *Leg, location *Location) int {
-	// var _visited int
-
-	_visited, _ := jm.Processed.Stop[leg.ID+"-"+location.ID]
-
-	return _visited
-}
-
-// ============================================================================
-// mark this stop as visited
-// ============================================================================
-func (jm *JourneyMap) MarkStopAsProcessed(leg *Leg, stop *Stop) {
-	jm.Processed.Stop[leg.ID+"-"+stop.Location.ID] = PROCESSED
-	// jm.Processed.Stop[stop.Location.ID] = PROCESSED
-}
-
-// ============================================================================
-// mark this leg as visited
-// ============================================================================
-func (jm *JourneyMap) LegFullyProcessed(leg *Leg) bool {
-	for _, _stop := range leg.AllStops {
-		if jm.StopProcessed(leg, _stop.Location) != PROCESSED {
-			return false
-		}
-	}
-
-	return true
-}
-
-// ============================================================================
 // create a leg from locations
 // ============================================================================
 func MakeALeg(legID string, locationIDs ...*Location) (*Leg, error) {
@@ -533,6 +695,54 @@ func MakeALeg(legID string, locationIDs ...*Location) (*Leg, error) {
 	_res := CreateLeg(legID, locationIDs[0], locationIDs[len(locationIDs)-1], _distance, _time, _stops)
 
 	return &_res, nil
+}
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// mark this leg as
+// ============================================================================
+func (jm *JourneyMap) SetLegProcessingStatus(leg *Leg, status int) {
+	jm.Processed.Leg[leg.ID] = status
+}
+
+// ============================================================================
+// return leg processing status
+// ============================================================================
+func (jm *JourneyMap) LegProcessingStatus(leg *Leg) int {
+	return jm.Processed.Leg[leg.ID]
+}
+
+// ============================================================================
+// mark this leg as visited
+// ============================================================================
+func (jm *JourneyMap) LegFullyProcessed(leg *Leg) bool {
+	for _, _stop := range leg.AllStops {
+		if jm.StopProcessingStatus(leg, _stop.Location) != PROCESSED {
+			return false
+		}
+	}
+
+	return true
+}
+
+// ============================================================================
+// has this stop been processed already?
+// ============================================================================
+func (jm *JourneyMap) StopProcessingStatus(leg *Leg, location *Location) int {
+	_status, _ := jm.Processed.Stop[leg.ID+"-"+location.ID]
+
+	return _status
+}
+
+// ============================================================================
+// mark this stop as visited
+// ============================================================================
+func (jm *JourneyMap) SetConnectionProcessingStatus(leg *Leg, connection *Connection, status int) {
+	jm.Processed.Stop[leg.ID+"-"+connection.FromNode.ID] = status
 }
 
 // ============================================================================
