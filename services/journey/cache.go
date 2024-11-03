@@ -8,20 +8,20 @@ package journey
 // ============================================================================
 // ============================================================================
 type miCacheType struct {
-	NodeIdIndex map[string][]*Leg_2 // return all legs through a locationID
-	LegIdIndex  map[string]*Leg_2   // return leg for a legID
+	NodeIdIndex map[string][]*Leg // return all legs through a locationID
+	LegIdIndex  map[string]*Leg   // return leg for a legID
 }
 
 const _LegIdCacheInitialSize = 100
 const _NodeIdCacheInitialSize = _LegIdCacheInitialSize * 4
 
-var MICache miCacheType = miCacheType{NodeIdIndex: make(map[string][]*Leg_2, _NodeIdCacheInitialSize),
-	LegIdIndex: make(map[string]*Leg_2, _LegIdCacheInitialSize)}
+var MICache miCacheType = miCacheType{NodeIdIndex: make(map[string][]*Leg, _NodeIdCacheInitialSize),
+	LegIdIndex: make(map[string]*Leg, _LegIdCacheInitialSize)}
 
 // ============================================================================
 //
 // ============================================================================
-func (mic *miCacheType) AddLeg(leg *Leg_2) error {
+func (mic *miCacheType) AddLeg(leg *Leg) error {
 	var _err error
 	// Leg is unique and therefore we can add to the cache
 	MICache.LegIdIndex[leg.ID] = leg
@@ -42,7 +42,7 @@ func (mic *miCacheType) AddLeg(leg *Leg_2) error {
 // ============================================================================
 //
 // ============================================================================
-func (mic *miCacheType) GetLegFromId(id string) *Leg_2 {
+func (mic *miCacheType) GetLegFromId(id string) *Leg {
 	return mic.LegIdIndex[id]
 
 }
@@ -50,18 +50,18 @@ func (mic *miCacheType) GetLegFromId(id string) *Leg_2 {
 // ============================================================================
 //
 // ============================================================================
-func (mic *miCacheType) CreateAndAddLeg(id string, from, to *Location_2, distance int,
-	timeTaken int, allStops Stops_2) {
+func (mic *miCacheType) CreateAndAddLeg(id string, from, to *Location, distance int,
+	timeTaken int, allStops Stops) {
 
 	// var _newLeg Leg = Leg{ID: id, From: from, To: to, Distance: distance, TimeTaken: timeTaken, AllStops: allStops}
-	var _newLeg Leg_2 = Leg_2{ID: id, Distance: distance, TimeTaken: timeTaken, AllStops: allStops}
+	var _newLeg Leg = Leg{ID: id, Distance: distance, TimeTaken: timeTaken, AllStops: allStops}
 	mic.AddLeg(&_newLeg)
 }
 
 // ============================================================================
 //
 // ============================================================================
-func (mic *miCacheType) GetLegFromNode(locationId string) Legs_2 {
+func (mic *miCacheType) GetLegFromNode(locationId string) Legs {
 	return mic.NodeIdIndex[locationId]
 }
 
