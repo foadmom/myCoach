@@ -522,7 +522,9 @@ func (jm *JourneyMap) FindConnectingNodes_v5_1(level int, parent *Connection) {
 		// get all legs through this node
 		var _legs Legs = MICache.GetLegFromNode(parent.ThisStop.ID)
 		for _, _leg := range _legs {
-			jm.setLegStatus(_leg, QUEUED_TO_BE_PROCESSED)
+			if jm.getLegStatus(_leg) == NOT_PROCESSED {
+				jm.setLegStatus(_leg, QUEUED_TO_BE_PROCESSED)
+			}
 		}
 		for _, _leg := range _legs {
 			_legStatus := jm.getLegStatus(_leg)
@@ -557,6 +559,9 @@ func (jm *JourneyMap) FindConnectingNodes_v5_1(level int, parent *Connection) {
 						}
 					}
 				}
+			}
+			if jm.getLegStatus(_leg) != ON_PATH {
+				jm.setLegStatus(_leg, PROCESSED)
 			}
 
 		}
