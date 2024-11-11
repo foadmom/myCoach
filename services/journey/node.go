@@ -622,19 +622,22 @@ func (jm *JourneyMap) FindConnectingNodes_v5_3(level int, parent *Connection) {
 		parent.Legs = _legs
 
 		for _, _leg := range _legs {
-			var _legStatus *legStatus = jm.getLegStatus(_leg)
+			// if _leg.ID == "NX561_EN" {
+			// 	fmt.Println("NX561_EN")
+			// }
+			// var _legStatus *legStatus = jm.getLegStatus(_leg)
 			if parent.ThisStop.ID == _leg.To.ID {
 				continue
 			}
-			if _legStatus != nil {
-				if _legStatus.level != level {
-					// ignore this leg because it is being processed or about to be
-					// processed in a differnt level
-					continue
-				}
-			} else {
-				jm.setLegStatus(_leg, BEING_PROCESSED, level)
-			}
+			// if _legStatus != nil {
+			// if _legStatus.level != level {
+			// 	// ignore this leg because it is being processed or about to be
+			// 	// processed in a differnt level
+			// 	continue
+			// }
+			// } else {
+			jm.setLegStatus(_leg, BEING_PROCESSED, level)
+			// }
 			if jm.LegStopsAtThisLocation(_leg, parent.ThisStop, jm.JourneyEnd) != nil {
 				// if this leg contains our final destination, then we have found a way though
 				jm.FoundAConnectionThrough(_leg, jm.JourneyEnd, parent)
@@ -649,10 +652,9 @@ func (jm *JourneyMap) FindConnectingNodes_v5_3(level int, parent *Connection) {
 						if _stop.ID == parent.ThisStop.ID {
 							_startingLocation = true
 						}
-						// } else {
-					}
-					if _startingLocation == true {
-						if jm.getLocationStatus(_leg, _stop) != DEAD_END && _stop.ID != parent.ThisStop.ID {
+					} else {
+						// if jm.getLocationStatus(_leg, _stop) != DEAD_END && _stop.ID != parent.ThisStop.ID {
+						if _stop.ID != parent.ThisStop.ID {
 							_connection := jm.MakeAConnection(_leg, _stop, parent, nil, BEING_PROCESSED)
 							jm.FindConnectingNodes_v5_3(level+1, _connection)
 							if _connection.Status == ON_PATH {
